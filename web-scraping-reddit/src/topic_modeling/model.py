@@ -1,10 +1,11 @@
-from typing import List
+from typing import List, Dict, Any
 import numpy as np
 
 from bertopic import BERTopic
 from bertopic.vectorizers import ClassTfidfTransformer
 from umap import UMAP
-from sklearn.cluster import KMeans
+from hdbscan import HDBSCAN
+
 from sklearn.feature_extraction.text import CountVectorizer
 
 from sklearn.metrics import silhouette_score
@@ -15,31 +16,24 @@ def train_topic_model(
     documents: List[str],
     embeddings: np.ndarray,
     stopwords: set,
-    n_clusters: int = 10,
-    n_neighbors: int = 50,
-    n_components: int = 3
+    umap_params: Dict[str, Any] = None,  
+    hdbscan_params: Dict[str, Any] = None 
 ):
-    print("1. Treinando BERTopic (UMAP + KMeans + c-TF-IDF)...")
+    print("1. Treinando BERTopic na GPU (cuML UMAP + cuML HDBSCAN + c-TF-IDF)...")
 
-    umap_model = UMAP(
-        n_neighbors= n_neighbors,
-        min_dist=0.0,
-        n_components= n_components,
-        metric='cosine',
-        random_state=42
-    )
+    if umap_params is None:
+        umap_params = {}
+    if hdbscan_params is None:
+        hdbscan_params = {}
 
-    kmeans_model = KMeans(
-        n_clusters=n_clusters,
-        random_state=42,
-        n_init="auto"
-    )
+    umap_model = UMAP(**umap_params)
+    hdbscan_model = HDBSCAN(**hdbscan_params)
 
     vectorizer = CountVectorizer(stop_words=list(stopwords))
     
     topic_model = BERTopic(
         umap_model=umap_model,
-        hdbscan_model=kmeans_model,
+        hdbscan_model=hdbscan_model,
         ctfidf_model=ClassTfidfTransformer(),
         vectorizer_model=vectorizer,
         verbose=True

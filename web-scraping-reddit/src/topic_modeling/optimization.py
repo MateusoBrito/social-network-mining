@@ -46,13 +46,23 @@ def grid_search(
         print(f"\n[{i+1}/{len(combinations)}] {params}")
 
         try:
+            umap_p = {
+                'n_neighbors': params['n_neighbors'],
+                'n_components': params['n_components']
+            }
+            
+            hdbscan_p = {
+                'min_cluster_size': params['min_cluster_size'],
+                'min_samples': params['min_samples'],
+                'cluster_selection_epsilon': params['cluster_selection_epsilon']
+            }
+
             topic_model, topics = train_topic_model(
-                documents,
-                embeddings,
-                stopwords,
-                n_clusters=params["n_clusters"],
-                n_neighbors=params["n_neighbors"],
-                n_components=params["n_components"],
+                documents=documents,
+                embeddings=embeddings,
+                stopwords=stopwords,
+                umap_params=umap_p,
+                hdbscan_params=hdbscan_p
             )
 
             #model_id = f"c{params['n_clusters']}_n{params['n_neighbors']}_comp{params['n_components']}"

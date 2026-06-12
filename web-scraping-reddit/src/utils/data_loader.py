@@ -16,12 +16,12 @@ def load_preprocessed_data(
     pelos ids válidos.
     """
     df = pd.read_parquet(
-        DATA_PROCESSED / "preprocess_text.parquet",
+        DATA_PROCESSED / "titles_clean.parquet",
         columns=columns
     )
     if only_valid_ids:
         ids_validos = pd.read_parquet(
-            DATA_PROCESSED / "ids_validos.parquet"
+            DATA_PROCESSED / "valid_ids.parquet"
         )
         ids = set(ids_validos["id"])
         df = df[df["id"].isin(ids)]
@@ -68,13 +68,23 @@ def load_raw_data(
 
     return df
 
-def load_all_data():
+def load_all_data(columns=None):
     df_kdd = pd.read_csv(DATA_PROCESSED / "df_kdd.csv")
     df_lang = pd.read_csv(DATA_PROCESSED / "lang_detection.csv")
     df_lang = df_lang.drop(columns=["title"])
+    df_pp = load_preprocessed_data(columns=["id", "title_clean"])
     df_subreddit = pd.read_parquet(DATA_PROCESSED / "subreddits_metrics.parquet")
 
-    df_merged = pd.merge(df_kdd, df_lang, on='id', how='left')
-    df_final = pd.merge(df_merged, df_subreddit, on='subreddit', how='left')
+    # 1) join base + linguagem
+    df_kdd_lang = pd.merge(df_kdd, df_lang, on="id", how="left")
+
+    # 2) adiciona métricas do subreddit
+    df_kdd_lang_subreddit = pd.merge(df_kdd_lang,df_subreddit,on="subreddit",how="left")
+
+    # 3) adiciona texto processado
+    df_final = pd.merge(df_kdd_lang_subreddit,df_pp,on="id",how="left")
     
+    if columns:
+        df_final = df_final[columns]
+
     return df_final

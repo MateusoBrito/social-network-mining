@@ -1,0 +1,20 @@
+# config.yaml
+
+paths:
+  stopwords: "data/processed/stopwords.txt"
+  cache_embeddings: "data/processed/embeddings_topic_modeling_all_mini.npy"
+  dir_reports: "reports/topic_modeling"
+  top_n: 1
+
+model:
+  embedding_name: "all-MiniLM-L6-v2"
+
+grid_search:
+  # Parâmetros do UMAP
+  n_neighbors: [30, 50, 100]
+  n_components: [5]
+  
+  # Parâmetros do HDBSCAN 
+  min_cluster_size: [25,50,100]
+  min_samples: [1, 5]
+  cluster_selection_epsilon: [0.0]
