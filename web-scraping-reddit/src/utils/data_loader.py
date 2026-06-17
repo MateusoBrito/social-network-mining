@@ -53,7 +53,8 @@ def load_raw_data(
                 print(f"Erro JSON em {file_path}: {e}")
 
     df = pd.DataFrame(rows)
-
+    df = df.drop_duplicates(subset=['id'])
+    
     if only_valid_ids:
         ids_validos = pd.read_parquet(
             DATA_PROCESSED / "valid_ids.parquet"
@@ -65,6 +66,7 @@ def load_raw_data(
         df = df[columns]
     
     print(f"Posts carregados: {len(df)}")
+    print(f"Quantidade de subreddts: {len(df['subreddit'].unique())}")
 
     return df
 
@@ -73,16 +75,16 @@ def load_all_data(columns=None):
     df_lang = pd.read_csv(DATA_PROCESSED / "lang_detection.csv")
     df_lang = df_lang.drop(columns=["title"])
     df_pp = load_preprocessed_data(columns=["id", "title_clean"])
-    df_subreddit = pd.read_parquet(DATA_PROCESSED / "subreddits_metrics.parquet")
+    #df_subreddit = pd.read_parquet(DATA_PROCESSED / "subreddits_metrics.parquet")
 
     # 1) join base + linguagem
     df_kdd_lang = pd.merge(df_kdd, df_lang, on="id", how="left")
 
     # 2) adiciona métricas do subreddit
-    df_kdd_lang_subreddit = pd.merge(df_kdd_lang,df_subreddit,on="subreddit",how="left")
+    #df_kdd_lang_subreddit = pd.merge(df_kdd_lang,df_subreddit,on="subreddit",how="left")
 
     # 3) adiciona texto processado
-    df_final = pd.merge(df_kdd_lang_subreddit,df_pp,on="id",how="left")
+    df_final = pd.merge(df_kdd_lang,df_pp,on="id",how="left")
     
     if columns:
         df_final = df_final[columns]

@@ -11,105 +11,12 @@ from src.utils.paths import ROOT
 
 from src.topic_modeling.data_prepare import load_stopwords, prepare_data
 from src.topic_modeling.embeddings import generate_embeddings
-from src.topic_modeling.optimization import grid_search, select_best_configs
-from src.topic_modeling.model import train_topic_model, evaluate_model
-from src.topic_modeling.export import export_topic_dictionary, export_visualizations
+from src.topic_modeling.optimization import run_single
 
 def load_config(config_path: str = "config.yaml") -> dict:
     """Lê o arquivo YAML e retorna um dicionário."""
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
-
-def run_best_models(
-    documents_unique: list, 
-    embeddings: np.ndarray, 
-    df_grid: pd.DataFrame, 
-    df_unique: pd.DataFrame, 
-    df_full: pd.DataFrame, 
-    stopwords: set, 
-    output_dir: Path,
-    top_n: int = 1
-):
-    best_configs = select_best_configs(df_grid, top_n=top_n)
-    
-    # CHAVES ATUALIZADAS: Removido 'n_clusters' e adicionado os parâmetros do HDBSCAN
-    param_keys = ["n_neighbors", "n_components", "min_cluster_size", "min_samples", "cluster_selection_epsilon"]
-
-    # 1. Agrupa os modelos únicos, listando todas as PASTAS de destino
-    modelos_para_treinar = {}
-    for caminho_relativo, row in best_configs.items():
-        # Converte os parâmetros numéricos para o tipo correto (int ou float)
-        params_tupla = (
-            int(row["n_neighbors"]),
-            int(row["n_components"]),
-            int(row["min_cluster_size"]),
-            int(row["min_samples"]),
-            float(row["cluster_selection_epsilon"])
-        )
-        
-        if params_tupla not in modelos_para_treinar:
-            modelos_para_treinar[params_tupla] = {
-                "params": {
-                    "n_neighbors": int(row["n_neighbors"]),
-                    "n_components": int(row["n_components"]),
-                    "hdbscan_params": {
-                        "min_cluster_size": int(row["min_cluster_size"]),
-                        "min_samples": int(row["min_samples"]),
-                        "cluster_selection_epsilon": float(row["cluster_selection_epsilon"])
-                    }
-                },
-                "destinos": [caminho_relativo]
-            }
-        else:
-            modelos_para_treinar[params_tupla]["destinos"].append(caminho_relativo)
-
-    total_modelos = len(modelos_para_treinar)
-    print(f"\nFiltro Inteligente: {total_modelos} treinamentos cobrirão {len(best_configs)} rankings.")
-
-    # 2. Loop de Treinamento Direto (Sem Cache)
-    for i, (params_tupla, info) in enumerate(modelos_para_treinar.items(), start=1):
-        params = info["params"]
-        destinos = info["destinos"]
-        
-        print(f"\n{'='*60}")
-        print(f"[{i}/{total_modelos}] Treinando config: UMAP={params['n_neighbors']} | MinCluster={params['hdbscan_params']['min_cluster_size']}")
-
-        # DESEMPACOTAMENTO INTELIGENTE: Passa os parâmetros de forma limpa para a GPU
-        topic_model, topics = train_topic_model(
-            documents=documents_unique, 
-            embeddings=embeddings, 
-            stopwords=stopwords, 
-            n_neighbors=params["n_neighbors"],
-            n_components=params["n_components"],
-            umap_params=None, # Assume as configs padrão do UMAP criadas na função
-            hdbscan_params=params["hdbscan_params"]
-        )
-
-        print(f"\n{'='*60}")
-        print(f"-> Este modelo será salvo nas seguintes pastas:")
-        for d in destinos:
-            print(f"   - {d}")
-        print(f"{'='*60}")
-        
-        # B. Avaliação Única
-        metrics = evaluate_model(topic_model, topics, documents_unique, embeddings)
-        metrics["params"] = params
-
-        # C. Exportação Múltipla
-        for caminho in destinos:
-            model_dir = output_dir / caminho 
-            model_dir.mkdir(parents=True, exist_ok=True)
-
-            with open(model_dir / "metricas.json", "w") as f:
-                json.dump(metrics, f, indent=4)
-
-            export_topic_dictionary(topic_model, topics, df_unique, df_full, model_dir)
-            export_visualizations(topic_model, model_dir)
-            
-            print(f"   Salvo em: {model_dir}")
-            
-    print("\nProcesso de treinamento e exportação dos melhores modelos concluído!")
-
 
 def main():
     
@@ -146,25 +53,17 @@ def main():
     )
     
     # 4. Executa a busca de hiperparâmetros
-    df_results = grid_search(
-        documents_unique, 
-        embeddings, 
-        stopwords, 
-        param_grid=config["grid_search"], 
+    params = config["model_params"]  
+
+    topic_model, topics = run_single(
+        documents_unique,
+        embeddings,
+        stopwords,
+        params=params,
+        df_unique=df_unique,
+        df_full=df_full,
         output_dir=dir_reports
     )
 
-    # 5. Treina e exporta os melhores modelos encontrados
-    run_best_models(
-        documents_unique, 
-        embeddings, 
-        df_results, 
-        df_unique, 
-        df_full, 
-        stopwords,
-        top_n = config["paths"]["top_n"],
-        output_dir=dir_reports
-    )
-    
 if __name__ == "__main__":
     main()

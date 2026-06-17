@@ -1,15 +1,15 @@
 from typing import List, Dict, Any
 import numpy as np
+import random
 
 from bertopic import BERTopic
 from bertopic.vectorizers import ClassTfidfTransformer
-from umap import UMAP
-from hdbscan import HDBSCAN
+from cuml.manifold import UMAP
+from cuml.cluster import HDBSCAN
 
 from sklearn.feature_extraction.text import CountVectorizer
 
 from sklearn.metrics import silhouette_score
-from gensim.models.coherencemodel import CoherenceModel
 from gensim.corpora.dictionary import Dictionary
 
 def train_topic_model(
@@ -52,7 +52,7 @@ def evaluate_model(
     print("2. Avaliando modelo...")
 
     # --- Silhoueta ---
-    silhouette = silhouette_score(embeddings, topics, metric="cosine")
+    silhouette = silhouette_score(embeddings, topics, metric="cosine", sample_size=20000, random_state=42)
     print(f"   -> Silhoueta: {silhouette:.4f}")
 
     # --- Diversidade ---
@@ -68,21 +68,9 @@ def evaluate_model(
     diversity = len(set(all_words)) / len(all_words) if all_words else 0.0
     print(f"   -> Diversidade: {diversity:.4f}")
 
-    # --- Coerência (c_v) ---
-    tokenized = [doc.split() for doc in documents]
-    dictionary = Dictionary(tokenized)
-    coherence_model = CoherenceModel(
-        topics=topic_words,
-        texts=tokenized,
-        dictionary=dictionary,
-        coherence="c_v"
-    )
-    coherence = coherence_model.get_coherence()
-    print(f"   -> Coerência (c_v): {coherence:.4f}")
 
     return {
         "n_topics": len(set(topics)) - (1 if -1 in topics else 0),
         "silhouette": round(silhouette, 4),
         "diversity": round(diversity, 4),
-        "coherence_cv": round(coherence, 4),
     }

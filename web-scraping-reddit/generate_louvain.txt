@@ -1,0 +1,28 @@
+==================================================
+Carregando o grafo de:
+/home/mateus/Documentos/UFSJ/redesSociais/web-scraping-reddit/artifacts/graph/network_disparity.graphml
+Grafo carregado com sucesso: 2386 nós e 4023 arestas.
+
+Filtrando ilhas isoladas (mantendo apenas o Componente Gigante)...
+O Componente Gigante possui 1297 nós e 3055 arestas.
+Foram ignoradas 325 pequenas ilhas isoladas.
+
+Executando clusterização de comunidades (Louvain)...
+Com resolução 0.5, a rede foi particionada em 32 macro-comunidades válidas.
+
+Calculando a disposição espacial dos nós (Spring Layout)...
+Aguarde, isso pode levar de 1 a 3 minutos para redes grandes...
+
+Desenhando e renderizando o gráfico de alta resolução...
+==================================================
+Gráfico gerado com sucesso em:
+/home/mateus/Documentos/UFSJ/redesSociais/web-scraping-reddit/reports/graph_analysis/louvain_communities_macro.png
+==================================================
+            subreddit  community_id
+0            predator             0
+1        martysupreme             0
+2  societyofghostface             0
+3       90smemorylane             0
+4    quentintarantino             0
+Comunidades salvas em /home/mateus/Documentos/UFSJ/redesSociais/web-scraping-reddit/reports/graph_analysis/louvain_communities.csv
+==================================================
