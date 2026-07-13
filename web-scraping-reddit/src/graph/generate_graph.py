@@ -5,21 +5,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import networkx as nx
 from pathlib import Path
-
 from src.utils.data_loader import load_raw_data, ROOT
 
-# =====================================================================
-# 1. PREPARAÇÃO DE DADOS
-# =====================================================================
 def load_and_clean_data(columns: list[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Carrega os dados brutos e remove ruídos estocásticos (turistas e deletados)."""
-    print('='*50)
     print("Carregando e limpando dados...")
     df = load_raw_data(columns, False)
     
     print("\nRemovendo autores [deleted] para evitar super-nós de ruído...")
     df = df[df['author'] != '[deleted]']
 
+    # deixa só quem postou em mais de um subreddit
     author_counts = df.groupby('author')['subreddit'].nunique()
     authors_conectors = author_counts[author_counts >= 2].index
     
@@ -29,15 +24,10 @@ def load_and_clean_data(columns: list[str]) -> tuple[pd.DataFrame, pd.DataFrame]
     print(f"Postagens originais: {len(df)}")
     print(f"Postagens após filtragem: {len(df_filtered)}")
     print(f"Conexões únicas (subreddit-autor): {len(df_unique)}")
-    print('='*50)
     
     return df_filtered, df_unique
 
-# =====================================================================
-# 2. CONSTRUÇÃO E PROJEÇÃO DA REDE
-# =====================================================================
 def create_bipartite_matrix(df: pd.DataFrame) -> tuple[sp.csr_matrix, dict, dict]:
-    """Gera a matriz de incidência esparsa B (Usuários x Subreddits)."""
     print("\nConvertendo autores e subreddits para índices numéricos...")
     author_cat = pd.Categorical(df['author'])
     subreddit_cat = pd.Categorical(df['subreddit'])
@@ -55,7 +45,6 @@ def create_bipartite_matrix(df: pd.DataFrame) -> tuple[sp.csr_matrix, dict, dict
     return B_matrix, author_map, subreddit_map
 
 def project_unipartite_network(B_matrix: sp.csr_matrix, subreddit_map: dict) -> pd.DataFrame:
-    """Realiza a projeção monopartida e calcula pesos absolutos e relativos (Jaccard)."""
     print("\nCalculando a projeção de co-autoria (B^T * B)...")
     A = B_matrix.T.dot(B_matrix)
     A.setdiag(0)
@@ -81,11 +70,7 @@ def project_unipartite_network(B_matrix: sp.csr_matrix, subreddit_map: dict) -> 
     
     return edges_df[['source', 'target', 'peso_absoluto', 'peso_jaccard']]
 
-# =====================================================================
-# 3. MÉTODOS DE FILTRAGEM (BACKBONING)
-# =====================================================================
 def filter_by_jaccard(edges_df: pd.DataFrame, df_original: pd.DataFrame, quantile: float = 0.95) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Filtro Heurístico Global: Mantém o topo X% das arestas baseadas no Índice de Jaccard."""
     print(f"\nAplicando Extração de Backbone (Top {1-quantile:.0%} Jaccard)...")
     limiar = edges_df['peso_jaccard'].quantile(quantile)
     edges_backbone = edges_df[edges_df['peso_jaccard'] >= limiar].copy()
@@ -96,7 +81,6 @@ def filter_by_jaccard(edges_df: pd.DataFrame, df_original: pd.DataFrame, quantil
     return edges_backbone, df_final
 
 def filter_by_disparity(edges_df: pd.DataFrame, df_original: pd.DataFrame, alpha_level: float = 0.05) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Modelo Nulo Estatístico: Retém conexões significativas (Serrano et al., 2009)."""
     print("\nAplicando Modelo Nulo Estatístico (Filtro de Disparidade)...")
     
     edges_sym = pd.concat([
@@ -125,11 +109,7 @@ def filter_by_disparity(edges_df: pd.DataFrame, df_original: pd.DataFrame, alpha
     
     return edges_backbone, df_final
 
-# =====================================================================
-# 4. UTILITÁRIOS (PLOTS E EXPORTAÇÃO)
-# =====================================================================
 def plot_distributions(edges_df: pd.DataFrame):
-    """Gera gráficos estatísticos de distribuição de pesos."""
     print("\nGerando gráficos de distribuição...")
     sns.set_theme(style="whitegrid", context="paper")
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -151,7 +131,6 @@ def plot_distributions(edges_df: pd.DataFrame):
     plt.savefig(output_path / "distribuicao_pesos.png", dpi=300, bbox_inches='tight')
 
 def save_outputs(edges_backbone: pd.DataFrame, df_final: pd.DataFrame):
-    """Salva as topologias e o corpus final filtrado."""
     output_dir = ROOT / "artifacts/graph"
     output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -165,27 +144,16 @@ def save_outputs(edges_backbone: pd.DataFrame, df_final: pd.DataFrame):
     nx.write_graphml(G, output_dir / "network_disparity.graphml")
 
 
-# =====================================================================
-# EXECUÇÃO PRINCIPAL
-# =====================================================================
 def main():
-    # 1. Carregar dados e criar rede base
     df_original, df_unique = load_and_clean_data(['author', 'subreddit'])
     B_matrix, _, subreddit_map = create_bipartite_matrix(df_unique)
     edges_df = project_unipartite_network(B_matrix, subreddit_map)
 
-    # 2. Análise Visual (Opcional, salva imagens)
     plot_distributions(edges_df)
 
-    # 3. Filtragem Definitiva usando Modelo Nulo Estatístico (Disparidade)
     edges_backbone, df_final = filter_by_disparity(edges_df, df_original, alpha_level=0.05)
 
-    # Nota: A função 'filter_by_jaccard(edges_df, df_original)' está disponível 
-    # caso seja necessário comparar metodologias no futuro.
-
-    # 4. Exportação dos resultados
     save_outputs(edges_backbone, df_final)
-    print('='*50)
 
 if __name__ == "__main__":
     main()

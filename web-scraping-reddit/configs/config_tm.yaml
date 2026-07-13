@@ -3,7 +3,7 @@
 paths:
   stopwords: "data/processed/stopwords.txt"
   cache_embeddings: "data/processed/embeddings_topic_modeling_all_mini.npy"
-  dir_reports: "reports/topic_modeling"
+  dir_reports: "reports/topic_modeling_3"
   top_n: 1
 
 model:
