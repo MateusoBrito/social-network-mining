@@ -1,0 +1,19 @@
+# config.yaml
+
+paths:
+  stopwords: "data/processed/stopwords.txt"
+  cache_embeddings: "data/processed/embeddings_topic_modeling_all_mini.npy"
+  dir_reports: "reports/topic_modeling"
+  top_n: 1
+
+model:
+  embedding_name: "all-MiniLM-L6-v2"
+
+model_params:
+
+  n_neighbors: 50
+  n_components: 5
+
+  min_cluster_size: 150
+  min_samples: 5
+  cluster_selection_epsilon: 0.0
